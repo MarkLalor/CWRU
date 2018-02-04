@@ -97,7 +97,7 @@ class Wepa(object):
 def wepa(args):
     filepath = args.document
 
-    wepa = Wepa('email', 'pass')
+    wepa = Wepa('username', 'password')
 
     fileid = wepa.do_upload(filepath)
 

@@ -1,0 +1,4 @@
+beautifulsoup4
+Requests==2.18.4
+requests_toolbelt==0.8.0
+fake_useragent==0.1.8

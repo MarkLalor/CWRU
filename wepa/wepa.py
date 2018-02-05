@@ -7,23 +7,7 @@ from fake_useragent import UserAgent
 
 from cwru import cwru_config
 
-job_data_defaults = {
-    'range': 'ALL',
-    'start': '1',
-    'end': '1',
-    'color': 'BLACKANDWHITE',
-    'orientation': 'PORTRAIT',
-    'duplex': 'false',
-    'what': 'SLIDES',
-    'handout': 'one',
-    'copies': '1',
-    'size': '_4x6',
-    'scale': 'KeepOriginalAspectRatio',
-    'rotate': '1'
-}
-
 job_data_requirements = ['fileid', 'range', 'start', 'end', 'color', 'orientation', 'duplex', 'what', 'handout', 'copies', 'extension', 'size', 'scale','rotate']
-
 
 def pretty_print_POST(req):
     """

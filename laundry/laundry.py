@@ -1,8 +1,9 @@
-import json
-
 import re
+from typing import List
+
 import requests
 from bs4 import BeautifulSoup, NavigableString
+from tabulate import tabulate
 
 
 def no_strings(contents):
@@ -32,18 +33,17 @@ def get_minutes(status):
     return
 
 
-def get_info(room_id):
+def get_data(room_id):
     url = 'http://classic.laundryview.com/laundry_room.php?lr=' + room_id
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
 
-    info = {}
+    data = {}
 
-    info['organization'] = soup.select('#monitor-head h1')[0].contents[0]
-    info['room'] = soup.select('#monitor-head h2')[0].contents[0]
+    data['organization'] = soup.select('#monitor-head h1')[0].contents[0]
+    data['room'] = soup.select('#monitor-head h2')[0].contents[0]
 
     washers = soup.select('#classic_monitor > table > tr > td[align="left"] > table > tr')
     dryers  = soup.select('#classic_monitor > table > tr > td[align="right"] > table > tr')
-
 
     def parse_machine_column(rows):
         # the relevant info per machine is actually stored in two rows
@@ -71,34 +71,56 @@ def get_info(room_id):
 
         return machine
 
+    data['machines'] = {}
 
-    info['machines'] = {}
+    data['machines']['washers'] = parse_machine_column(washers)
+    data['machines']['dryers'] = parse_machine_column(dryers)
 
-    info['machines']['washers'] = parse_machine_column(washers)
-    info['machines']['dryers'] = parse_machine_column(dryers)
+    return data
 
-    return info
-
-
-def print_laundry(laundry_data):
+def print_laundry(laundry_data, color):
     print(laundry_data['organization'])
     print(laundry_data['room'])
     print()
 
-    def print_machine(machine_data, kind):
-        pass
+    def generate_entries(machine_data, kind) -> List[List[str]]:
+        from termcolor import colored
 
-    print_machine(laundry_data['washers'])
-    print_machine(laundry_data['dryers'], kind='dryer')
+        def machine_status(machine):
+            result = machine_data[machine]['status']
 
+            if result == 'available' or result.startswith('cycle ended'):
+                result = (True, colored(result, 'green') if color else result)
+            elif result.startswith('est. time remaining'):
+                result = (True, colored(result, 'yellow') if color else result)
+            else:
+                result = (False, colored(result, 'red') if color else result)
+
+            return result
+
+        entries = []
+        for machine_id in machine_data.keys():
+            status = machine_status(machine_id)
+            entries.append([kind, machine_id, status[1], machine_data[machine_id]['minutes'] if status[0] else '?', '{:.0%}'.format(float(machine_data[machine_id]['progress'])) if status[0] else '?'])
+
+        return entries
+
+    entries = []
+    entries += generate_entries(laundry_data['machines']['washers'], kind='washer')
+    entries += generate_entries(laundry_data['machines']['dryers'], kind='dryer')
+
+    print(tabulate(entries, headers=['Type', 'ID', 'Status', 'Time', 'Progress'], tablefmt='plain'))
+
+
+# Command-line entry point:
 
 def laundry(args):
     rooms = list_rooms()
 
-    id = next(v for k, v in rooms.items() if k.startswith(args.building.upper()))
+    id = next((v for k, v in rooms.items() if k.lower().replace(" ", "").startswith(args.building.lower().replace(" ", ""))), None)
 
     if id is None:
-        print('no matches :/')
+        print('Could not find room "%s"' % args.building.lower().replace(" ", ""))
     else:
-        parsed = get_info(id)
-        print_laundry(parsed)
+        parsed = get_data(id)
+        print_laundry(parsed, args.c)
